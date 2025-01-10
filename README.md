@@ -8,7 +8,7 @@ Check out our [SHOWCASE.md](SHOWCASE.md) for detailed examples and real-world us
 
 ## Discord
 
-Join our Discord server to discuss features, ask questions: [Discord](https://discord.gg/7MjqwynP)
+Join our Discord server to discuss features, ask questions: [Discord](https://discord.gg/N6FBdRZ8sw)
 
 ## Features
 - 🤖 AI-powered rules generation
@@ -127,4 +127,4 @@ Contributions are welcome! Please feel free to submit pull requests or create is
 
 ## License
 
-This project is licensed under the GPL-3.0 License - see the LIC [LICENSE](LICENSE) file for details. 
+This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) file for details. 
