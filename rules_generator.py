@@ -341,6 +341,34 @@ Project Structure Layout:
 3. Documentation Framework:
 {chr(10).join(f"- {file}: documentation" for file in project_structure['doc_files'][:5])}
 
+4. Module Organization Analysis:
+- Core Module Functions:
+{chr(10).join([f"- {f}: Primary module handling {f.split('_')[0].title()} functionality" for f in project_structure['files'] if f.endswith('.py') and not any(x in f.lower() for x in ['test', 'setup', 'config'])][:5])}
+
+- Module Dependencies:
+{chr(10).join([f"- {f} depends on: {', '.join(list(set([imp.split('.')[0] for imp in project_structure['patterns']['imports'] if imp in f])))}" for f in project_structure['files'] if f.endswith('.py')][:5])}
+
+- Module Responsibilities:
+Please analyze each module's code and describe its core responsibilities based on:
+1. Function and class names
+2. Import statements
+3. Code patterns and structures
+4. Documentation strings
+5. Variable names and usage
+6. Error handling patterns
+7. Performance optimization techniques
+
+- Module Organization Rules:
+Based on the codebase analysis, identify and describe:
+1. Module organization patterns
+2. Dependency management approaches
+3. Code structure conventions
+4. Naming conventions
+5. Documentation practices
+6. Testing strategies
+7. Error handling strategies
+8. Performance optimization patterns
+
 Code Sample Analysis:
 {chr(10).join(f"File: {file}:{chr(10)}{content[:10000]}..." for file, content in list(project_structure['code_contents'].items())[:50])}
 
@@ -358,54 +386,66 @@ Based on this detailed analysis, create behavior rules for AI to:
 11. Follow configuration patterns
 
 Return a JSON object defining AI behavior rules:
-{{
-    "ai_behavior": {{
-        "code_generation": {{
-            "style": {{
-                "prefer": [],  # Exact coding patterns found in project
-                "avoid": []   # Patterns not present in project
-            }},
-            "error_handling": {{
-                "prefer": [],  # Project's exact error handling
-                "avoid": []   # Error patterns not used in project
-            }},
-            "performance": {{
-                "prefer": [],  # Existing performance techniques
-                "avoid": []   # Unused optimization approaches
-            }},
-            "module_organization": {{
-                "structure": [],  # Current module structure
-                "dependencies": []  # Existing dependency patterns
-            }},
-            "logging": {{
-                "levels": [],  # Current logging levels
-                "formats": []  # Existing log formats
-            }}
+{{"ai_behavior": {{
+    "code_generation": {{
+        "style": {{
+            "prefer": [],
+            "avoid": []
         }},
-        "testing": {{
-            "frameworks": [],  # Current test frameworks
-            "coverage_threshold": 80,
-            "include": [],     # Existing test patterns
-            "naming": [],      # Current test naming
-            "organization": []  # Existing test structure
+        "error_handling": {{
+            "prefer": [],
+            "avoid": []
         }},
-        "security": {{
-            "sensitive_patterns": [],  # Current security patterns
-            "protected_files": [],     # Protected file types
-            "requirements": [],        # Existing security rules
-            "code_review": [],        # Current review practices
-            "dependency_management": []  # Existing dependency security
+        "performance": {{
+            "prefer": [],
+            "avoid": []
         }},
-        "documentation": {{
-            "required_sections": [],   # Current doc sections
-            "code_comments": {{
-                "require_docstrings": true,
-                "require_type_hints": true,
-                "require_examples": true
-            }}
+        "module_organization": {{
+            "structure": [],  # Analyze and describe the current module structure
+            "dependencies": [],  # Analyze actual dependencies between modules
+            "responsibilities": {{}},  # Analyze and describe each module's core responsibilities
+            "rules": [],  # Extract rules from actual code organization patterns
+            "naming": {{}}  # Extract naming conventions from actual code
+        }}
+    }},
+    "testing": {{
+        "frameworks": [],
+        "coverage_threshold": 0,
+        "include": [],
+        "naming": [],
+        "organization": []
+    }},
+    "security": {{
+        "sensitive_patterns": [
+            "GEMINI_API_KEY",
+            "API_KEY",
+            "SECRET_KEY",
+            "PASSWORD"
+        ],
+        "protected_files": [
+            "config.json",
+            ".env"
+        ],
+        "requirements": [],
+        "code_review": [],
+        "dependency_management": []
+    }},
+    "documentation": {{
+        "required_sections": [
+            "Project Focus",
+            "Key Components",
+            "Project Context",
+            "Development Guidelines",
+            "File Analysis",
+            "Project Metrics Summary"
+        ],
+        "code_comments": {{
+            "require_docstrings": false,
+            "require_type_hints": false,
+            "require_examples": false
         }}
     }}
-}}
+}}}}
 
 Critical Guidelines for AI:
 1. NEVER deviate from existing code patterns
