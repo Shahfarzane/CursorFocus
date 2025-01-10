@@ -21,6 +21,11 @@ Join our Discord server to discuss features, ask questions: [Discord](https://di
 - 🧩 Modular and extensible design
 - 🎛️ Automatic .cursorrules generation and project adaptation
 
+## Requirements
+
+- The AI ​​gemini key is required for focus.py to work (most important)
+- Python 3.10+
+
 ## Multi-Project Support
 
 CursorFocus can monitor multiple projects simultaneously. There are two ways to set this up:
@@ -37,42 +42,12 @@ This will:
 - List all detected projects
 - Let you choose which projects to monitor
 
-### 2. Manual Configuration
-
-Edit `config.json` to add multiple projects:
-```json
-{
-    "projects": [
-        {
-            "name": "Project 1",
-            "project_path": "/path/to/project1",
-            "type": "node_js",
-            "watch": true
-        },
-        {
-            "name": "Project 2",
-            "project_path": "/path/to/project2",
-            "type": "chrome_extension",
-            "watch": true
-        }
-    ]
-}
-```
-
-Each project can have its own:
-- Custom update interval
-- Ignored patterns
-- File length standards
-- Project-specific rules
-
 ### Project Types Supported:
 - Chrome Extensions (detected by manifest.json)
 - Node.js Projects (detected by package.json)
 - Python Projects (detected by setup.py or pyproject.toml)
 - React Applications (detected by src/App.js)
 - Generic Projects (basic structure)
-
-## Alternative Setup Methods
 
 ### Manual Setup
 
@@ -124,28 +99,6 @@ CursorFocus automatically generates and maintains three key files:
    python focus.py
    ```
 
-## Setup
-
-1. Clone repository it
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-3. Run setup to configure the projects you want to monitor:
-```bash
-python setup.py --scan
-```
-
-## Usage
-
-1. Run the program:
-```bash
-python focus.py
-```
-
-2. To run automatically when the computer starts:
-- Windows: Create a shortcut to `focus.py` and set it to run at startup
-- Linux: Add the command to run to `.bashrc` or create a systemd service
 
 ## Output
 
@@ -168,89 +121,10 @@ CursorFocus generates a `Focus.md` file in your project root with:
    - Detailed function descriptions
    - File length standards compliance
 
-## Configuration
-
-Edit `config.json` to customize:
-
-```json
-{
-    "project_path": "",
-    "update_interval": 60,
-    "max_depth": 3,
-    "ignored_directories": [
-        "__pycache__",
-        "node_modules",
-        "venv",
-        ".git",
-        ".idea",
-        ".vscode",
-        "dist",
-        "build",
-        "coverage"
-    ],
-    "ignored_files": [
-        ".DS_Store",
-        "Thumbs.db",
-        "*.pyc",
-        "*.pyo",
-        "package-lock.json",
-        "yarn.lock"
-    ]
-}
-```
-
-## File Length Standards
-
-CursorFocus includes built-in file length standards for different file types:
-
-- JavaScript/TypeScript:
-  - Regular files: 300 lines
-  - React components (.jsx/.tsx): 250 lines
-
-- Python files: 400 lines
-
-- Style files:
-  - CSS/SCSS/LESS/SASS: 400 lines
-
-- Template files:
-  - HTML: 300 lines
-  - Vue/Svelte components: 250 lines
-
-- Configuration files:
-  - JSON/YAML/TOML: 100 lines
-
-- Documentation files:
-  - Markdown/RST: 500 lines
-
-The tool will alert you when files exceed these recommended limits.
-
-## Project Structure
-
-```
-CursorFocus/
-├── focus.py           # Main entry point
-├── analyzers.py       # File and code analysis
-├── config.py          # Configuration management
-├── content_generator.py # Focus file generation
-├── project_detector.py # Project type detection
-├── config.json        # User configuration
-└── requirements.txt   # Dependencies
-```
-
-## Supported Project Types
-
-CursorFocus automatically detects and provides specialized information for:
-
-- Chrome Extensions (manifest.json)
-- Node.js Projects (package.json)
-- Python Projects (setup.py, pyproject.toml)
-- Generic Projects (basic structure)
-
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit pull requests or create issues for bugs and feature requests.
 
 ## License
 
-This project is licensed under the GPL-3.0 License - see the LICENSE file for details. 
+This project is licensed under the GPL-3.0 License - see the LIC [LICENSE](LICENSE) file for details. 
