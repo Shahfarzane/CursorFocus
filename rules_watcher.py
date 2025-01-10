@@ -13,9 +13,10 @@ class RulesWatcher(FileSystemEventHandler):
         self.rules_generator = RulesGenerator(project_path)
         self.last_update = 0
         self.update_delay = 5  # Seconds to wait before updating to avoid multiple updates
+        self.auto_update = False  # Disable auto-update by default
 
     def on_modified(self, event):
-        if event.is_directory:
+        if event.is_directory or not self.auto_update:  # Skip if auto-update is disabled
             return
             
         # Only process Focus.md changes or project configuration files
@@ -31,6 +32,9 @@ class RulesWatcher(FileSystemEventHandler):
 
     def _should_process_file(self, file_path: str) -> bool:
         """Check if the file change should trigger a rules update."""
+        if not self.auto_update:  # Skip if auto-update is disabled
+            return False
+            
         filename = os.path.basename(file_path)
         
         # List of files that should trigger an update
@@ -49,6 +53,9 @@ class RulesWatcher(FileSystemEventHandler):
 
     def _update_rules(self):
         """Update the .cursorrules file."""
+        if not self.auto_update:  # Skip if auto-update is disabled
+            return
+            
         try:
             # Re-detect project type
             project_info = detect_project_type(self.project_path)
@@ -58,6 +65,12 @@ class RulesWatcher(FileSystemEventHandler):
             print(f"Updated .cursorrules for project {self.project_id} at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         except Exception as e:
             print(f"Error updating .cursorrules for project {self.project_id}: {e}")
+
+    def set_auto_update(self, enabled: bool):
+        """Enable or disable auto-update of .cursorrules."""
+        self.auto_update = enabled
+        status = "enabled" if enabled else "disabled"
+        print(f"Auto-update of .cursorrules is now {status} for project {self.project_id}")
 
 class ProjectWatcherManager:
     def __init__(self):
@@ -118,6 +131,13 @@ class ProjectWatcherManager:
         """Stop watching all projects."""
         for project_id in list(self.observers.keys()):
             self.remove_project(project_id)
+
+    def set_auto_update(self, project_id: str, enabled: bool):
+        """Enable or disable auto-update for a specific project."""
+        if project_id in self.watchers:
+            self.watchers[project_id].set_auto_update(enabled)
+        else:
+            print(f"Project {project_id} is not being watched")
 
 def start_watching(project_paths: str | list[str]):
     """Start watching one or multiple project directories for changes.

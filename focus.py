@@ -112,8 +112,18 @@ def get_default_config():
 def setup_cursor_focus(project_path):
     """Set up CursorFocus for a project by generating necessary files."""
     try:
+        rules_file = os.path.join(project_path, '.cursorrules')
+        
+        # Check if .cursorrules exists and ask user
+        if os.path.exists(rules_file):
+            print(f"\nFound existing .cursorrules file.")
+            response = input("Do you want to generate a new one? (y/n): ").lower()
+            if response != 'y':
+                print("Using existing .cursorrules file.")
+                return
+        
         # Generate .cursorrules file
-        print(f"Analyzing project: {project_path}")
+        print(f"\nAnalyzing project: {project_path}")
         analyzer = RulesAnalyzer(project_path)
         project_info = analyzer.analyze_project_for_rules()
         
@@ -149,7 +159,7 @@ def monitor_project(project_config, global_config):
     last_content = None
     last_update = 0
 
-    # Start rules watcher for this project
+    # Start rules watcher for this project but disable auto-update
     watcher = ProjectWatcherManager()
     watcher.add_project(project_path, project_config['name'])
 
@@ -222,10 +232,8 @@ def main():
     
     try:
         for project in config['projects']:
-            # Setup project if needed
-            rules_file = os.path.join(project['project_path'], '.cursorrules')
-            if not os.path.exists(rules_file):
-                setup_cursor_focus(project['project_path'])
+            # Always run setup_cursor_focus to check/create .cursorrules
+            setup_cursor_focus(project['project_path'])
 
             # Start monitoring thread
             thread = Thread(

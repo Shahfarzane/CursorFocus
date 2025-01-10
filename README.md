@@ -1,3 +1,4 @@
+```All copyrights are owned by RenjiYuusei please do not steal the source code or change it without permission please respect the copyright```
 # CursorFocus
 
 A lightweight tool that maintains a focused view of your project structure and environment. CursorFocus automatically tracks your project files, functions, and environment variables, updating every 60 seconds to keep you informed of changes.
@@ -10,7 +11,7 @@ Check out our [SHOWCASE.md](SHOWCASE.md) for detailed examples and real-world us
 Join our Discord server to discuss features, ask questions: [Discord](https://discord.gg/7MjqwynP)
 
 ## Features
-
+- 🤖 AI-powered rules generation
 - 🔄 Real-time project structure tracking
 - 📝 Automatic file and function documentation
 - 🌳 Hierarchical directory visualization
