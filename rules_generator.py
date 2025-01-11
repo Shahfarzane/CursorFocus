@@ -8,6 +8,40 @@ from rules_analyzer import RulesAnalyzer
 from dotenv import load_dotenv
 
 class RulesGenerator:
+    # Common regex patterns
+    IMPORT_PATTERNS = {
+        'python': r'^(?:from|import)\s+([a-zA-Z0-9_\.]+)',
+        'javascript': r'(?:import\s+.*?from\s+[\'"]([^\'\"]+)[\'"]|require\s*\([\'"]([^\'\"]+)[\'"]\))',
+        'typescript': r'(?:import|require)\s+.*?[\'"]([^\'\"]+)[\'"]',
+        'kotlin': r'import\s+([^\n]+)',
+        'php': r'(?:require|include)(?:_once)?\s*[\'"]([^\'"]+)[\'"]',
+        'swift': r'import\s+([^\n]+)'
+    }
+
+    CLASS_PATTERNS = {
+        'python': r'class\s+(\w+)(?:\((.*?)\))?\s*:',
+        'javascript': r'class\s+(\w+)(?:\s+extends\s+(\w+))?\s*{',
+        'typescript': r'(?:class|const)\s+(\w+)(?:\s*(?:extends|implements)\s+([^{]+))?(?:\s*=\s*(?:styled|React\.memo|React\.forwardRef))?\s*[{<]',
+        'kotlin': r'(?:class|interface|object)\s+(\w+)(?:\s*:\s*([^{]+))?',
+        'php': r'class\s+(\w+)(?:\s+extends\s+(\w+))?(?:\s+implements\s+([^{]+))?',
+        'swift': r'(?:class|struct|protocol|enum)\s+(\w+)(?:\s*:\s*([^{]+))?'
+    }
+
+    FUNCTION_PATTERNS = {
+        'python': r'def\s+(\w+)\s*\((.*?)\)(?:\s*->\s*([^:]+))?\s*:',
+        'javascript': r'(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>))\s*\((.*?)\)',
+        'typescript': r'(?:function|const)\s+(\w+)\s*(?:<[^>]+>)?\s*(?:=\s*)?(?:async\s*)?\((.*?)\)(?:\s*:\s*([^{=]+))?',
+        'kotlin': r'fun\s+(\w+)\s*\((.*?)\)(?:\s*:\s*([^{]+))?',
+        'php': r'function\s+(\w+)\s*\((.*?)\)(?:\s*:\s*([^{]+))?',
+        'swift': r'func\s+(\w+)\s*\((.*?)\)(?:\s*->\s*([^{]+))?'
+    }
+
+    METHOD_PATTERN = r'(?:async\s+)?(\w+)\s*\((.*?)\)\s*{'
+    VARIABLE_PATTERN = r'(?:const|let|var)\s+(\w+)\s*=\s*([^;]+)'
+    ERROR_PATTERN = r'try\s*{[^}]*}\s*catch\s*\((\w+)\)'
+    INTERFACE_PATTERN = r'(?:interface|type)\s+(\w+)(?:\s+extends\s+([^{]+))?'
+    JSX_COMPONENT_PATTERN = r'<(\w+)(?:\s+[^>]*)?>'
+
     def __init__(self, project_path: str):
         self.project_path = project_path
         self.analyzer = RulesAnalyzer(project_path)
@@ -269,6 +303,71 @@ Critical Guidelines for AI:
             print(f"⚠️ Error generating AI rules: {e}")
             raise
 
+    def _generate_project_description(self, project_structure: Dict[str, Any]) -> str:
+        """Generate project description using AI based on project analysis."""
+        try:
+            # Analyze core modules
+            core_modules = []
+            for file in project_structure.get('files', []):
+                if file.endswith('.py') and not any(x in file.lower() for x in ['setup', 'config', 'test']):
+                    module_info = {
+                        'name': file,
+                        'classes': [c for c in project_structure['patterns']['class_patterns'] if c['file'] == file],
+                        'functions': [f for f in project_structure['patterns']['function_patterns'] if f['file'] == file],
+                        'imports': [imp for imp in project_structure['patterns']['imports'] if imp in file]
+                    }
+                    core_modules.append(module_info)
+
+            # Analyze main patterns
+            main_patterns = {
+                'error_handling': project_structure.get('patterns', {}).get('error_patterns', []),
+                'performance': project_structure.get('patterns', {}).get('performance_patterns', []),
+                'code_organization': project_structure.get('patterns', {}).get('code_organization', [])
+            }
+
+            # Create detailed prompt for AI
+            prompt = f"""Analyze this project structure and create a detailed description (2-3 sentences) that captures its essence:
+
+Project Overview:
+1. Core Modules Analysis:
+{chr(10).join([f"- {m['name']}: {len(m['classes'])} classes, {len(m['functions'])} functions" for m in core_modules])}
+
+2. Module Responsibilities:
+{chr(10).join([f"- {m['name']}: Main purpose indicated by {', '.join([c['name'] for c in m['classes'][:2]])}" for m in core_modules if m['classes']])}
+
+3. Technical Implementation:
+- Error Handling: {len(main_patterns['error_handling'])} patterns found
+- Performance Optimizations: {len(main_patterns['performance'])} patterns found
+- Code Organization: {len(main_patterns['code_organization'])} patterns found
+
+4. Project Architecture:
+- Total Files: {len(project_structure.get('files', []))}
+- Core Python Modules: {len(core_modules)}
+- External Dependencies: {len(project_structure.get('dependencies', {}))}
+
+Based on this analysis, create a description that covers:
+1. The project's main purpose and functionality
+2. Key technical features and implementation approach
+3. Target users and primary use cases
+4. Unique characteristics or innovations
+
+Format: Return a clear, concise description focusing on what makes this project unique.
+Do not include technical metrics in the description."""
+
+            # Get AI response
+            response = self.chat_session.send_message(prompt)
+            description = response.text.strip()
+            
+            # Validate description length and content
+            if len(description.split()) > 100:  # Length limit
+                description = ' '.join(description.split()[:100]) + '...'
+            
+            return description
+            
+        except Exception as e:
+            print(f"⚠️ Error generating project description: {e}")
+            return "A software project with automated analysis and rule generation capabilities."
+
     def generate_rules_file(self, project_info: Dict[str, Any] = None) -> str:
         """Generate the .cursorrules file based on project analysis and AI suggestions."""
         try:
@@ -276,14 +375,23 @@ Critical Guidelines for AI:
             if project_info is None:
                 project_info = self.analyzer.analyze_project_for_rules()
             
+            # Analyze project structure
+            project_structure = self._analyze_project_structure()
+            
             # Generate AI rules
             ai_rules = self._generate_ai_rules(project_info)
+            
+            # Generate project description
+            description = self._generate_project_description(project_structure)
             
             # Create rules with AI suggestions
             rules = {
                 "version": "1.0",
                 "last_updated": self._get_timestamp(),
-                "project": project_info,
+                "project": {
+                    **project_info,
+                    "description": description
+                },
                 "ai_behavior": ai_rules['ai_behavior']
             }
             
@@ -302,16 +410,12 @@ Critical Guidelines for AI:
     def _analyze_python_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
         """Analyze Python file content."""
         # Find imports and dependencies
-        imports = re.findall(r'^(?:from|import)\s+([a-zA-Z0-9_\.]+)', content, re.MULTILINE)
+        imports = re.findall(self.IMPORT_PATTERNS['python'], content, re.MULTILINE)
         structure['dependencies'].update({imp: True for imp in imports})
         structure['patterns']['imports'].extend(imports)
         
         # Find classes and their patterns
-        classes = re.findall(r'class\s+(\w+)(?:\(.*?\))?:', content)
-        structure['patterns']['classes'].extend(classes)
-        
-        # Analyze class patterns
-        class_patterns = re.finditer(r'class\s+(\w+)(?:\((.*?)\))?\s*:', content)
+        class_patterns = re.finditer(self.CLASS_PATTERNS['python'], content)
         for match in class_patterns:
             class_name = match.group(1)
             inheritance = match.group(2) if match.group(2) else ''
@@ -322,7 +426,7 @@ Critical Guidelines for AI:
             })
         
         # Find and analyze functions
-        function_patterns = re.finditer(r'def\s+(\w+)\s*\((.*?)\)(?:\s*->\s*([^:]+))?\s*:', content)
+        function_patterns = re.finditer(self.FUNCTION_PATTERNS['python'], content)
         for match in function_patterns:
             func_name = match.group(1)
             params = match.group(2)
@@ -337,13 +441,13 @@ Critical Guidelines for AI:
     def _analyze_js_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
         """Analyze JavaScript file content."""
         # Find imports
-        imports = re.findall(r'(?:import\s+.*?from\s+[\'"]([^\'\"]+)[\'"]|require\s*\([\'"]([^\'\"]+)[\'"]\))', content)
+        imports = re.findall(self.IMPORT_PATTERNS['javascript'], content)
         imports = [imp[0] or imp[1] for imp in imports]  # Flatten tuples from regex groups
         structure['dependencies'].update({imp: True for imp in imports})
         structure['patterns']['imports'].extend(imports)
         
         # Find classes
-        classes = re.finditer(r'class\s+(\w+)(?:\s+extends\s+(\w+))?\s*{', content)
+        classes = re.finditer(self.CLASS_PATTERNS['javascript'], content)
         for match in classes:
             structure['patterns']['class_patterns'].append({
                 'name': match.group(1),
@@ -352,7 +456,7 @@ Critical Guidelines for AI:
             })
         
         # Find functions (including arrow functions)
-        functions = re.finditer(r'(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>))\s*\((.*?)\)', content)
+        functions = re.finditer(self.FUNCTION_PATTERNS['javascript'], content)
         for match in functions:
             name = match.group(1) or match.group(2)  # Get name from either function or variable
             structure['patterns']['function_patterns'].append({
@@ -362,7 +466,7 @@ Critical Guidelines for AI:
             })
             
         # Find object methods
-        methods = re.finditer(r'(?:async\s+)?(\w+)\s*\((.*?)\)\s*{', content)
+        methods = re.finditer(self.METHOD_PATTERN, content)
         for match in methods:
             structure['patterns']['function_patterns'].append({
                 'name': match.group(1),
@@ -372,7 +476,7 @@ Critical Guidelines for AI:
             })
             
         # Find variables and constants
-        variables = re.finditer(r'(?:const|let|var)\s+(\w+)\s*=\s*([^;]+)', content)
+        variables = re.finditer(self.VARIABLE_PATTERN, content)
         for match in variables:
             structure['patterns']['variable_patterns'].append({
                 'name': match.group(1),
@@ -381,7 +485,7 @@ Critical Guidelines for AI:
             })
             
         # Find error handling patterns
-        try_blocks = re.finditer(r'try\s*{[^}]*}\s*catch\s*\((\w+)\)', content)
+        try_blocks = re.finditer(self.ERROR_PATTERN, content)
         for match in try_blocks:
             structure['patterns']['error_patterns'].append({
                 'exception_var': match.group(1),
@@ -398,12 +502,12 @@ Critical Guidelines for AI:
     def _analyze_kotlin_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
         """Analyze Kotlin file content."""
         # Find imports
-        imports = re.findall(r'import\s+([^\n]+)', content)
+        imports = re.findall(self.IMPORT_PATTERNS['kotlin'], content)
         structure['dependencies'].update({imp: True for imp in imports})
         structure['patterns']['imports'].extend(imports)
         
         # Find classes
-        classes = re.finditer(r'(?:class|interface|object)\s+(\w+)(?:\s*:\s*([^{]+))?', content)
+        classes = re.finditer(self.CLASS_PATTERNS['kotlin'], content)
         for match in classes:
             structure['patterns']['class_patterns'].append({
                 'name': match.group(1),
@@ -412,7 +516,7 @@ Critical Guidelines for AI:
             })
         
         # Find functions
-        functions = re.finditer(r'fun\s+(\w+)\s*\((.*?)\)(?:\s*:\s*([^{]+))?', content)
+        functions = re.finditer(self.FUNCTION_PATTERNS['kotlin'], content)
         for match in functions:
             structure['patterns']['function_patterns'].append({
                 'name': match.group(1),
@@ -424,12 +528,12 @@ Critical Guidelines for AI:
     def _analyze_php_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
         """Analyze PHP file content."""
         # Find imports/requires
-        imports = re.findall(r'(?:require|include)(?:_once)?\s*[\'"]([^\'"]+)[\'"]', content)
+        imports = re.findall(self.IMPORT_PATTERNS['php'], content)
         structure['dependencies'].update({imp: True for imp in imports})
         structure['patterns']['imports'].extend(imports)
         
         # Find classes
-        classes = re.finditer(r'class\s+(\w+)(?:\s+extends\s+(\w+))?(?:\s+implements\s+([^{]+))?', content)
+        classes = re.finditer(self.CLASS_PATTERNS['php'], content)
         for match in classes:
             structure['patterns']['class_patterns'].append({
                 'name': match.group(1),
@@ -439,7 +543,7 @@ Critical Guidelines for AI:
             })
         
         # Find functions
-        functions = re.finditer(r'function\s+(\w+)\s*\((.*?)\)(?:\s*:\s*([^{]+))?', content)
+        functions = re.finditer(self.FUNCTION_PATTERNS['php'], content)
         for match in functions:
             structure['patterns']['function_patterns'].append({
                 'name': match.group(1),
@@ -451,12 +555,12 @@ Critical Guidelines for AI:
     def _analyze_swift_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
         """Analyze Swift file content."""
         # Find imports
-        imports = re.findall(r'import\s+([^\n]+)', content)
+        imports = re.findall(self.IMPORT_PATTERNS['swift'], content)
         structure['dependencies'].update({imp: True for imp in imports})
         structure['patterns']['imports'].extend(imports)
         
         # Find classes and protocols
-        classes = re.finditer(r'(?:class|struct|protocol|enum)\s+(\w+)(?:\s*:\s*([^{]+))?', content)
+        classes = re.finditer(self.CLASS_PATTERNS['swift'], content)
         for match in classes:
             structure['patterns']['class_patterns'].append({
                 'name': match.group(1),
@@ -465,24 +569,24 @@ Critical Guidelines for AI:
             })
         
         # Find functions
-        functions = re.finditer(r'func\s+(\w+)\s*\((.*?)\)(?:\s*->\s*([^{]+))?', content)
+        functions = re.finditer(self.FUNCTION_PATTERNS['swift'], content)
         for match in functions:
             structure['patterns']['function_patterns'].append({
                 'name': match.group(1),
                 'parameters': match.group(2),
                 'return_type': match.group(3).strip() if match.group(3) else None,
                 'file': rel_path
-            }) 
+            })
 
     def _analyze_ts_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
         """Analyze TypeScript/TSX file content."""
         # Find imports
-        imports = re.findall(r'(?:import|require)\s+.*?[\'"]([^\'\"]+)[\'"]', content)
+        imports = re.findall(self.IMPORT_PATTERNS['typescript'], content)
         structure['dependencies'].update({imp: True for imp in imports})
         structure['patterns']['imports'].extend(imports)
         
         # Find interfaces and types
-        interfaces = re.finditer(r'(?:interface|type)\s+(\w+)(?:\s+extends\s+([^{]+))?', content)
+        interfaces = re.finditer(self.INTERFACE_PATTERN, content)
         for match in interfaces:
             structure['patterns']['class_patterns'].append({
                 'name': match.group(1),
@@ -492,7 +596,7 @@ Critical Guidelines for AI:
             })
         
         # Find classes and components
-        classes = re.finditer(r'(?:class|const)\s+(\w+)(?:\s*(?:extends|implements)\s+([^{]+))?(?:\s*=\s*(?:styled|React\.memo|React\.forwardRef))?\s*[{<]', content)
+        classes = re.finditer(self.CLASS_PATTERNS['typescript'], content)
         for match in classes:
             structure['patterns']['class_patterns'].append({
                 'name': match.group(1),
@@ -502,10 +606,10 @@ Critical Guidelines for AI:
             })
         
         # Find functions and hooks
-        functions = re.finditer(r'(?:function|const)\s+(\w+)\s*(?:<[^>]+>)?\s*(?:=\s*)?(?:async\s*)?\((.*?)\)(?:\s*:\s*([^{=]+))?', content)
+        functions = re.finditer(self.FUNCTION_PATTERNS['typescript'], content)
         for match in functions:
             name = match.group(1)
-            is_hook = name.startsWith('use') and name[3].isUpper()
+            is_hook = name.startswith('use') and name[3].isupper()
             structure['patterns']['function_patterns'].append({
                 'name': name,
                 'type': 'hook' if is_hook else 'function',
@@ -516,7 +620,7 @@ Critical Guidelines for AI:
         
         # Find JSX components in TSX files
         if rel_path.endswith('.tsx'):
-            components = re.finditer(r'<(\w+)(?:\s+[^>]*)?>', content)
+            components = re.finditer(self.JSX_COMPONENT_PATTERN, content)
             for match in components:
                 component_name = match.group(1)
                 if component_name[0].isupper():  # Custom components start with uppercase
