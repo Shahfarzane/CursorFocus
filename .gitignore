@@ -41,6 +41,7 @@ Thumbs.db
 
 # CursorFocus specific
 Focus.md
+.cursorignore
 .cursorrules
 *.log
 test_output/

@@ -48,24 +48,19 @@ class RulesGenerator:
             'dependencies': {},
             'frameworks': [],
             'languages': {},
-            'test_files': [],
             'config_files': [],
-            'doc_files': [],
             'code_contents': {},
             'patterns': {
                 'classes': [],
                 'functions': [],
                 'imports': [],
                 'error_handling': [],
-                'tests': [],
                 'configurations': [],
                 'naming_patterns': {},  # Track naming conventions
                 'code_organization': [], # Track code organization patterns
-                'docstring_patterns': [], # Track documentation patterns
                 'variable_patterns': [], # Track variable naming and usage
                 'function_patterns': [], # Track function patterns
                 'class_patterns': [],    # Track class patterns
-                'test_patterns': [],     # Track testing patterns
                 'error_patterns': [],    # Track error handling patterns
                 'performance_patterns': [] # Track performance patterns
             }
@@ -81,7 +76,7 @@ class RulesGenerator:
                 rel_path = os.path.relpath(file_path, self.project_path)
                 
                 # Analyze code files
-                if file.endswith(('.py', '.js', '.ts', '.java', '.cpp')):
+                if file.endswith(('.py', '.js', '.ts', '.tsx', '.kt', '.php', '.swift')):
                     structure['files'].append(rel_path)
                     
                     try:
@@ -89,107 +84,29 @@ class RulesGenerator:
                             content = f.read()
                             structure['code_contents'][rel_path] = content
                             
-                            # Analyze Python code
-                            if file.endswith('.py'):
-                                # Find imports and dependencies
-                                imports = re.findall(r'^(?:from|import)\s+([a-zA-Z0-9_\.]+)', content, re.MULTILINE)
-                                structure['dependencies'].update({imp: True for imp in imports})
-                                structure['patterns']['imports'].extend(imports)
-                                
-                                # Find classes and their patterns
-                                classes = re.findall(r'class\s+(\w+)(?:\(.*?\))?:', content)
-                                structure['patterns']['classes'].extend(classes)
-                                
-                                # Analyze class patterns
-                                class_patterns = re.finditer(r'class\s+(\w+)(?:\((.*?)\))?\s*:', content)
-                                for match in class_patterns:
-                                    class_name = match.group(1)
-                                    inheritance = match.group(2) if match.group(2) else ''
-                                    structure['patterns']['class_patterns'].append({
-                                        'name': class_name,
-                                        'inheritance': inheritance,
-                                        'file': rel_path
-                                    })
-                                
-                                # Find and analyze functions
-                                function_patterns = re.finditer(r'def\s+(\w+)\s*\((.*?)\)(?:\s*->\s*([^:]+))?\s*:', content)
-                                for match in function_patterns:
-                                    func_name = match.group(1)
-                                    params = match.group(2)
-                                    return_type = match.group(3) if match.group(3) else None
-                                    structure['patterns']['function_patterns'].append({
-                                        'name': func_name,
-                                        'parameters': params,
-                                        'return_type': return_type,
-                                        'file': rel_path
-                                    })
-                                
-                                # Analyze docstring patterns
-                                docstrings = re.finditer(r'"""(.*?)"""', content, re.DOTALL)
-                                for match in docstrings:
-                                    structure['patterns']['docstring_patterns'].append({
-                                        'content': match.group(1).strip(),
-                                        'file': rel_path
-                                    })
-                                
-                                # Analyze variable patterns
-                                variables = re.finditer(r'(\w+)\s*(?::[\s\w\[\],]*?)?\s*=\s*([^#\n]+)', content)
-                                for match in variables:
-                                    var_name = match.group(1)
-                                    var_value = match.group(2).strip()
-                                    if not var_name.isupper():  # Skip constants
-                                        structure['patterns']['variable_patterns'].append({
-                                            'name': var_name,
-                                            'value_type': var_value,
-                                            'file': rel_path
-                                        })
-                                
-                                # Analyze error handling
-                                error_blocks = re.finditer(r'try\s*:.*?except\s+(\w+)(?:\s+as\s+(\w+))?\s*:', content, re.DOTALL)
-                                for match in error_blocks:
-                                    exception_type = match.group(1)
-                                    exception_var = match.group(2) if match.group(2) else None
-                                    structure['patterns']['error_patterns'].append({
-                                        'exception_type': exception_type,
-                                        'exception_var': exception_var,
-                                        'file': rel_path
-                                    })
-                                
-                                # Analyze test patterns
-                                if '_test' in file or 'test_' in file:
-                                    test_functions = re.finditer(r'def\s+(test_\w+)\s*\((.*?)\)', content)
-                                    for match in test_functions:
-                                        test_name = match.group(1)
-                                        test_params = match.group(2)
-                                        structure['patterns']['test_patterns'].append({
-                                            'name': test_name,
-                                            'parameters': test_params,
-                                            'file': rel_path
-                                        })
-                                
-                                # Analyze performance patterns
-                                # Look for common performance-related patterns
-                                if any(pattern in content for pattern in ['@cache', '@lru_cache', 'yield', 'async def']):
-                                    structure['patterns']['performance_patterns'].append({
-                                        'file': rel_path,
-                                        'has_caching': '@cache' in content or '@lru_cache' in content,
-                                        'has_generators': 'yield' in content,
-                                        'has_async': 'async def' in content
-                                    })
+                            # Common code analysis patterns
+                            file_ext = os.path.splitext(file)[1]
                             
-                            # Find frameworks
-                            for framework in ['django', 'flask', 'fastapi', 'react', 'vue', 'angular']:
-                                if framework in content.lower():
-                                    structure['frameworks'].append(framework)
+                            # Language specific patterns
+                            if file_ext == '.py':
+                                self._analyze_python_file(content, rel_path, structure)
+                            elif file_ext == '.js':
+                                self._analyze_js_file(content, rel_path, structure)
+                            elif file_ext in ['.ts', '.tsx']:
+                                self._analyze_ts_file(content, rel_path, structure)
+                            elif file_ext == '.kt':
+                                self._analyze_kotlin_file(content, rel_path, structure)
+                            elif file_ext == '.php':
+                                self._analyze_php_file(content, rel_path, structure)
+                            elif file_ext == '.swift':
+                                self._analyze_swift_file(content, rel_path, structure)
                                     
                     except Exception as e:
                         print(f"⚠️ Error reading file {rel_path}: {e}")
                         continue
 
                 # Classify files
-                if file.endswith(('_test.py', '.test.js', '.spec.ts')):
-                    structure['test_files'].append(rel_path)
-                elif file.endswith(('.json', '.yaml', '.ini', '.conf')):
+                if file.endswith(('.json', '.yaml', '.ini', '.conf')):
                     structure['config_files'].append(rel_path)
                     try:
                         with open(file_path, 'r', encoding='utf-8') as f:
@@ -201,8 +118,6 @@ class RulesGenerator:
                     except Exception as e:
                         print(f"⚠️ Error reading config file {rel_path}: {e}")
                         continue
-                elif file.endswith(('.md', '.rst', '.txt')):
-                    structure['doc_files'].append(rel_path)
 
         return structure
 
@@ -225,9 +140,7 @@ Primary Purpose: Code generation and project analysis
 Project Metrics:
 - Files & Structure:
   - Total Files: {len(project_structure['files'])}
-  - Test Files: {len(project_structure['test_files'])} ({len(project_structure['test_files'])/len(project_structure['files'])*100:.1f}% coverage)
   - Config Files: {len(project_structure['config_files'])}
-  - Documentation: {len(project_structure['doc_files'])}
 - Dependencies:
   - Frameworks: {', '.join(project_structure['frameworks']) or 'none'}
   - Core Dependencies: {', '.join(list(project_structure['dependencies'].keys())[:10])}
@@ -244,106 +157,15 @@ Project Ecosystem:
 
 2. Project Components:
 - Core Modules:
-{chr(10).join([f"- {f}: {sum(1 for p in project_structure['patterns']['function_patterns'] if p['file'] == f)} functions" for f in project_structure['files'] if f.endswith('.py') and not any(x in f.lower() for x in ['test', 'setup', 'config'])][:5])}
+{chr(10).join([f"- {f}: {sum(1 for p in project_structure['patterns']['function_patterns'] if p['file'] == f)} functions" for f in project_structure['files'] if f.endswith('.py') and not any(x in f.lower() for x in ['setup', 'config'])][:5])}
 - Support Modules:
 {chr(10).join([f"- {f}" for f in project_structure['files'] if any(x in f.lower() for x in ['util', 'helper', 'common', 'shared'])][:5])}
 - Templates:
 {chr(10).join([f"- {f}" for f in project_structure['files'] if 'template' in f.lower()][:5])}
 
-3. Integration Points:
-- External APIs:
-{chr(10).join([f"- {imp}" for imp in project_structure['patterns']['imports'] if any(api in imp.lower() for api in ['api', 'client', 'sdk', 'service'])][:5])}
-- Internal Services:
-{chr(10).join([f"- {imp}" for imp in project_structure['patterns']['imports'] if 'service' in imp.lower()][:5])}
-- Data Storage:
-{chr(10).join([f"- {f}" for f in project_structure['files'] if any(x in f.lower() for x in ['db', 'data', 'storage', 'cache'])][:5])}
-
-4. Project Standards:
-- Code Quality:
-{chr(10).join([f"- {f}" for f in project_structure['files'] if f in ['.pylintrc', '.flake8', 'mypy.ini', '.eslintrc']][:5])}
-- Documentation:
-{chr(10).join([f"- {f}" for f in project_structure['files'] if f.endswith(('.md', '.rst', '.txt'))][:5])}
-- Project Management:
-{chr(10).join([f"- {f}" for f in project_structure['files'] if f in ['README.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'LICENSE']][:5])}
-
-Code Architecture Analysis:
-1. Class Structure:
-- Class Hierarchy:
-{chr(10).join(f"- {p['name']} ({p['inheritance'] or 'base class'})" for p in project_structure['patterns']['class_patterns'][:5])}
-- Method Organization:
-{chr(10).join(f"- {p['name']}: {len([m for m in project_structure['patterns']['function_patterns'] if m['file'] == p['file']])} methods" for p in project_structure['patterns']['class_patterns'][:5])}
-- Common Patterns:
-{chr(10).join(f"- {p['name']}: {'inherits ' + p['inheritance'] if p['inheritance'] else 'standalone'}" for p in project_structure['patterns']['class_patterns'][:5])}
-
-2. Function Architecture:
-- Signature Analysis:
-{chr(10).join(f"- {p['name']}: {len(p['parameters'].split(','))} params -> {p['return_type'] or 'None'}" for p in project_structure['patterns']['function_patterns'][:5])}
-- Parameter Types:
-{chr(10).join(f"- {p['name']}: {p['parameters']}" for p in project_structure['patterns']['function_patterns'][:5])}
-- Return Types Distribution:
-{chr(10).join(f"- {p['return_type'] or 'None'}" for p in project_structure['patterns']['function_patterns'][:5])}
-
-3. Error Handling Strategy:
-- Exception Hierarchy:
-{chr(10).join(f"- {p['exception_type']} ({p['file']})" for p in project_structure['patterns']['error_patterns'][:5])}
-- Error Management Patterns:
-{chr(10).join(f"- {p['file']}: {p['exception_type']} as {p['exception_var'] or '_'}" for p in project_structure['patterns']['error_patterns'][:5])}
-- Common Error Scenarios:
-{chr(10).join(f"- {p['exception_type']}: {sum(1 for e in project_structure['patterns']['error_patterns'] if e['exception_type'] == p['exception_type'])} occurrences" for p in project_structure['patterns']['error_patterns'][:5])}
-
-4. Testing Architecture:
-- Test Categories:
-{chr(10).join(f"- {p['name']}: {p['parameters']}" for p in project_structure['patterns']['test_patterns'][:5])}
-- Test Coverage:
-{chr(10).join(f"- {file}: {sum(1 for p in project_structure['patterns']['test_patterns'] if p['file'] == file)} tests" for file in project_structure['test_files'][:5])}
-- Testing Patterns:
-{chr(10).join(f"- {p['name']}: {p['parameters']}" for p in project_structure['patterns']['test_patterns'][:5])}
-
-5. Documentation Strategy:
-- Docstring Analysis:
-{chr(10).join(f"- {p['content'][:100]}..." for p in project_structure['patterns']['docstring_patterns'][:3])}
-- Documentation Structure:
-{chr(10).join(f"- {file}" for file in project_structure['doc_files'][:5])}
-- Documentation Patterns:
-{chr(10).join(f"- Style: {'multi-line' if len(p['content'].split(chr(10))) > 1 else 'single-line'}" for p in project_structure['patterns']['docstring_patterns'][:5])}
-
-6. Performance Optimization:
-- Caching Strategies:
-{chr(10).join(f"- {p['file']}: {'uses caching' if p['has_caching'] else 'no caching'}" for p in project_structure['patterns']['performance_patterns'][:3])}
-- Async Implementation:
-{chr(10).join(f"- {p['file']}: {'async' if p['has_async'] else 'sync'}" for p in project_structure['patterns']['performance_patterns'][:3])}
-- Resource Usage:
-{chr(10).join(f"- {p['file']}: {'uses generators' if p['has_generators'] else 'standard iteration'}" for p in project_structure['patterns']['performance_patterns'][:3])}
-
-7. Code Style Analysis:
-- Naming Conventions:
-{chr(10).join(f"- {p['name']}: {p['value_type']}" for p in project_structure['patterns']['variable_patterns'][:5])}
-- Import Structure:
-{chr(10).join(f"- {imp.split('.')[-1]}: from {'.'.join(imp.split('.')[:-1]) or 'builtin'}" for imp in project_structure['patterns']['imports'][:10])}
-- Code Organization:
-{chr(10).join(f"- {file.split('/')[-1]}: {sum(1 for p in project_structure['patterns']['function_patterns'] if p['file'] == file)} functions" for file in project_structure['files'][:5])}
-
-8. Configuration Architecture:
-- Config File Types:
-{chr(10).join(f"- {c['file'].split('.')[-1]}: {c['file']}" for c in project_structure['patterns']['configurations'][:5])}
-- Config Organization:
-{chr(10).join(f"- {c['file']}: configuration file" for c in project_structure['patterns']['configurations'][:5])}
-- Settings Distribution:
-{chr(10).join(f"- {c['file']}: configuration settings" for c in project_structure['patterns']['configurations'][:5])}
-
-Project Structure Layout:
-1. Core Components:
-{chr(10).join(f"- {file}: {sum(1 for p in project_structure['patterns']['function_patterns'] if p['file'] == file)} functions" for file in project_structure['files'][:10])}
-
-2. Test Framework:
-{chr(10).join(f"- {file}: {sum(1 for p in project_structure['patterns']['test_patterns'] if p['file'] == file)} tests" for file in project_structure['test_files'][:5])}
-
-3. Documentation Framework:
-{chr(10).join(f"- {file}: documentation" for file in project_structure['doc_files'][:5])}
-
-4. Module Organization Analysis:
+3. Module Organization Analysis:
 - Core Module Functions:
-{chr(10).join([f"- {f}: Primary module handling {f.split('_')[0].title()} functionality" for f in project_structure['files'] if f.endswith('.py') and not any(x in f.lower() for x in ['test', 'setup', 'config'])][:5])}
+{chr(10).join([f"- {f}: Primary module handling {f.split('_')[0].title()} functionality" for f in project_structure['files'] if f.endswith('.py') and not any(x in f.lower() for x in ['setup', 'config'])][:5])}
 
 - Module Dependencies:
 {chr(10).join([f"- {f} depends on: {', '.join(list(set([imp.split('.')[0] for imp in project_structure['patterns']['imports'] if imp in f])))}" for f in project_structure['files'] if f.endswith('.py')][:5])}
@@ -365,9 +187,8 @@ Based on the codebase analysis, identify and describe:
 3. Code structure conventions
 4. Naming conventions
 5. Documentation practices
-6. Testing strategies
-7. Error handling strategies
-8. Performance optimization patterns
+6. Error handling strategies
+7. Performance optimization patterns
 
 Code Sample Analysis:
 {chr(10).join(f"File: {file}:{chr(10)}{content[:10000]}..." for file, content in list(project_structure['code_contents'].items())[:50])}
@@ -376,14 +197,12 @@ Based on this detailed analysis, create behavior rules for AI to:
 1. Replicate the project's exact code style and patterns
 2. Match naming conventions precisely
 3. Follow identical error handling patterns
-4. Mirror the testing approach
-5. Copy performance optimization techniques
-6. Maintain documentation consistency
-7. Apply existing security measures
-8. Keep current code organization
-9. Preserve module boundaries
-10. Use established logging methods
-11. Follow configuration patterns
+4. Copy performance optimization techniques
+5. Maintain documentation consistency
+6. Keep current code organization
+7. Preserve module boundaries
+8. Use established logging methods
+9. Follow configuration patterns
 
 Return a JSON object defining AI behavior rules:
 {{"ai_behavior": {{
@@ -406,43 +225,6 @@ Return a JSON object defining AI behavior rules:
             "responsibilities": {{}},  # Analyze and describe each module's core responsibilities
             "rules": [],  # Extract rules from actual code organization patterns
             "naming": {{}}  # Extract naming conventions from actual code
-        }}
-    }},
-    "testing": {{
-        "frameworks": [],
-        "coverage_threshold": 0,
-        "include": [],
-        "naming": [],
-        "organization": []
-    }},
-    "security": {{
-        "sensitive_patterns": [
-            "GEMINI_API_KEY",
-            "API_KEY",
-            "SECRET_KEY",
-            "PASSWORD"
-        ],
-        "protected_files": [
-            "config.json",
-            ".env"
-        ],
-        "requirements": [],
-        "code_review": [],
-        "dependency_management": []
-    }},
-    "documentation": {{
-        "required_sections": [
-            "Project Focus",
-            "Key Components",
-            "Project Context",
-            "Development Guidelines",
-            "File Analysis",
-            "Project Metrics Summary"
-        ],
-        "code_comments": {{
-            "require_docstrings": false,
-            "require_type_hints": false,
-            "require_examples": false
         }}
     }}
 }}}}
@@ -516,3 +298,230 @@ Critical Guidelines for AI:
         except Exception as e:
             print(f"❌ Failed to generate rules: {e}")
             raise 
+
+    def _analyze_python_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
+        """Analyze Python file content."""
+        # Find imports and dependencies
+        imports = re.findall(r'^(?:from|import)\s+([a-zA-Z0-9_\.]+)', content, re.MULTILINE)
+        structure['dependencies'].update({imp: True for imp in imports})
+        structure['patterns']['imports'].extend(imports)
+        
+        # Find classes and their patterns
+        classes = re.findall(r'class\s+(\w+)(?:\(.*?\))?:', content)
+        structure['patterns']['classes'].extend(classes)
+        
+        # Analyze class patterns
+        class_patterns = re.finditer(r'class\s+(\w+)(?:\((.*?)\))?\s*:', content)
+        for match in class_patterns:
+            class_name = match.group(1)
+            inheritance = match.group(2) if match.group(2) else ''
+            structure['patterns']['class_patterns'].append({
+                'name': class_name,
+                'inheritance': inheritance,
+                'file': rel_path
+            })
+        
+        # Find and analyze functions
+        function_patterns = re.finditer(r'def\s+(\w+)\s*\((.*?)\)(?:\s*->\s*([^:]+))?\s*:', content)
+        for match in function_patterns:
+            func_name = match.group(1)
+            params = match.group(2)
+            return_type = match.group(3) if match.group(3) else None
+            structure['patterns']['function_patterns'].append({
+                'name': func_name,
+                'parameters': params,
+                'return_type': return_type,
+                'file': rel_path
+            })
+
+    def _analyze_js_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
+        """Analyze JavaScript file content."""
+        # Find imports
+        imports = re.findall(r'(?:import\s+.*?from\s+[\'"]([^\'\"]+)[\'"]|require\s*\([\'"]([^\'\"]+)[\'"]\))', content)
+        imports = [imp[0] or imp[1] for imp in imports]  # Flatten tuples from regex groups
+        structure['dependencies'].update({imp: True for imp in imports})
+        structure['patterns']['imports'].extend(imports)
+        
+        # Find classes
+        classes = re.finditer(r'class\s+(\w+)(?:\s+extends\s+(\w+))?\s*{', content)
+        for match in classes:
+            structure['patterns']['class_patterns'].append({
+                'name': match.group(1),
+                'inheritance': match.group(2) if match.group(2) else '',
+                'file': rel_path
+            })
+        
+        # Find functions (including arrow functions)
+        functions = re.finditer(r'(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>))\s*\((.*?)\)', content)
+        for match in functions:
+            name = match.group(1) or match.group(2)  # Get name from either function or variable
+            structure['patterns']['function_patterns'].append({
+                'name': name,
+                'parameters': match.group(3),
+                'file': rel_path
+            })
+            
+        # Find object methods
+        methods = re.finditer(r'(?:async\s+)?(\w+)\s*\((.*?)\)\s*{', content)
+        for match in methods:
+            structure['patterns']['function_patterns'].append({
+                'name': match.group(1),
+                'parameters': match.group(2),
+                'type': 'method',
+                'file': rel_path
+            })
+            
+        # Find variables and constants
+        variables = re.finditer(r'(?:const|let|var)\s+(\w+)\s*=\s*([^;]+)', content)
+        for match in variables:
+            structure['patterns']['variable_patterns'].append({
+                'name': match.group(1),
+                'value': match.group(2).strip(),
+                'file': rel_path
+            })
+            
+        # Find error handling patterns
+        try_blocks = re.finditer(r'try\s*{[^}]*}\s*catch\s*\((\w+)\)', content)
+        for match in try_blocks:
+            structure['patterns']['error_patterns'].append({
+                'exception_var': match.group(1),
+                'file': rel_path
+            })
+            
+        # Find async/await patterns
+        if 'async' in content:
+            structure['patterns']['performance_patterns'].append({
+                'file': rel_path,
+                'has_async': True
+            })
+
+    def _analyze_kotlin_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
+        """Analyze Kotlin file content."""
+        # Find imports
+        imports = re.findall(r'import\s+([^\n]+)', content)
+        structure['dependencies'].update({imp: True for imp in imports})
+        structure['patterns']['imports'].extend(imports)
+        
+        # Find classes
+        classes = re.finditer(r'(?:class|interface|object)\s+(\w+)(?:\s*:\s*([^{]+))?', content)
+        for match in classes:
+            structure['patterns']['class_patterns'].append({
+                'name': match.group(1),
+                'inheritance': match.group(2).strip() if match.group(2) else '',
+                'file': rel_path
+            })
+        
+        # Find functions
+        functions = re.finditer(r'fun\s+(\w+)\s*\((.*?)\)(?:\s*:\s*([^{]+))?', content)
+        for match in functions:
+            structure['patterns']['function_patterns'].append({
+                'name': match.group(1),
+                'parameters': match.group(2),
+                'return_type': match.group(3).strip() if match.group(3) else None,
+                'file': rel_path
+            })
+
+    def _analyze_php_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
+        """Analyze PHP file content."""
+        # Find imports/requires
+        imports = re.findall(r'(?:require|include)(?:_once)?\s*[\'"]([^\'"]+)[\'"]', content)
+        structure['dependencies'].update({imp: True for imp in imports})
+        structure['patterns']['imports'].extend(imports)
+        
+        # Find classes
+        classes = re.finditer(r'class\s+(\w+)(?:\s+extends\s+(\w+))?(?:\s+implements\s+([^{]+))?', content)
+        for match in classes:
+            structure['patterns']['class_patterns'].append({
+                'name': match.group(1),
+                'inheritance': match.group(2) if match.group(2) else '',
+                'interfaces': match.group(3).strip() if match.group(3) else '',
+                'file': rel_path
+            })
+        
+        # Find functions
+        functions = re.finditer(r'function\s+(\w+)\s*\((.*?)\)(?:\s*:\s*([^{]+))?', content)
+        for match in functions:
+            structure['patterns']['function_patterns'].append({
+                'name': match.group(1),
+                'parameters': match.group(2),
+                'return_type': match.group(3).strip() if match.group(3) else None,
+                'file': rel_path
+            })
+
+    def _analyze_swift_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
+        """Analyze Swift file content."""
+        # Find imports
+        imports = re.findall(r'import\s+([^\n]+)', content)
+        structure['dependencies'].update({imp: True for imp in imports})
+        structure['patterns']['imports'].extend(imports)
+        
+        # Find classes and protocols
+        classes = re.finditer(r'(?:class|struct|protocol|enum)\s+(\w+)(?:\s*:\s*([^{]+))?', content)
+        for match in classes:
+            structure['patterns']['class_patterns'].append({
+                'name': match.group(1),
+                'inheritance': match.group(2).strip() if match.group(2) else '',
+                'file': rel_path
+            })
+        
+        # Find functions
+        functions = re.finditer(r'func\s+(\w+)\s*\((.*?)\)(?:\s*->\s*([^{]+))?', content)
+        for match in functions:
+            structure['patterns']['function_patterns'].append({
+                'name': match.group(1),
+                'parameters': match.group(2),
+                'return_type': match.group(3).strip() if match.group(3) else None,
+                'file': rel_path
+            }) 
+
+    def _analyze_ts_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
+        """Analyze TypeScript/TSX file content."""
+        # Find imports
+        imports = re.findall(r'(?:import|require)\s+.*?[\'"]([^\'\"]+)[\'"]', content)
+        structure['dependencies'].update({imp: True for imp in imports})
+        structure['patterns']['imports'].extend(imports)
+        
+        # Find interfaces and types
+        interfaces = re.finditer(r'(?:interface|type)\s+(\w+)(?:\s+extends\s+([^{]+))?', content)
+        for match in interfaces:
+            structure['patterns']['class_patterns'].append({
+                'name': match.group(1),
+                'type': 'interface/type',
+                'inheritance': match.group(2).strip() if match.group(2) else '',
+                'file': rel_path
+            })
+        
+        # Find classes and components
+        classes = re.finditer(r'(?:class|const)\s+(\w+)(?:\s*(?:extends|implements)\s+([^{]+))?(?:\s*=\s*(?:styled|React\.memo|React\.forwardRef))?\s*[{<]', content)
+        for match in classes:
+            structure['patterns']['class_patterns'].append({
+                'name': match.group(1),
+                'type': 'class/component',
+                'inheritance': match.group(2).strip() if match.group(2) else '',
+                'file': rel_path
+            })
+        
+        # Find functions and hooks
+        functions = re.finditer(r'(?:function|const)\s+(\w+)\s*(?:<[^>]+>)?\s*(?:=\s*)?(?:async\s*)?\((.*?)\)(?:\s*:\s*([^{=]+))?', content)
+        for match in functions:
+            name = match.group(1)
+            is_hook = name.startsWith('use') and name[3].isUpper()
+            structure['patterns']['function_patterns'].append({
+                'name': name,
+                'type': 'hook' if is_hook else 'function',
+                'parameters': match.group(2),
+                'return_type': match.group(3).strip() if match.group(3) else None,
+                'file': rel_path
+            })
+        
+        # Find JSX components in TSX files
+        if rel_path.endswith('.tsx'):
+            components = re.finditer(r'<(\w+)(?:\s+[^>]*)?>', content)
+            for match in components:
+                component_name = match.group(1)
+                if component_name[0].isupper():  # Custom components start with uppercase
+                    structure['patterns']['class_patterns'].append({
+                        'name': component_name,
+                        'type': 'jsx_component',
+                        'file': rel_path
+                    }) 
