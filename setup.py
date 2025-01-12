@@ -15,19 +15,15 @@ def setup_cursorfocus():
     parser.add_argument('--list', '-l', action='store_true', help='List all configured projects')
     parser.add_argument('--remove', '-r', nargs='+', help='Remove projects by name or index')
     parser.add_argument('--clear', '-c', action='store_true', help='Remove all projects')
-    parser.add_argument('--scan', '-s', nargs='?', const='.', 
-                       help='Scan directory for projects. If no path provided, scans current directory')
+    parser.add_argument('--scan', '-s', nargs='?', const='.', help='Scan directory for projects')
     parser.add_argument('--scan-depth', type=int, default=3, help='Maximum depth for project scanning')
     parser.add_argument('--auto-add', '-a', action='store_true', help='Automatically add all found projects')
-    parser.add_argument('--sort', choices=['name', 'type', 'language'], 
-                       help='Sort projects by field')
+    parser.add_argument('--sort', choices=['name', 'type', 'language'], help='Sort projects by field')
     parser.add_argument('--filter', help='Filter projects by type/language/framework')
     
     args = parser.parse_args()
-    
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, 'config.json')
-    
     config = load_or_create_config(config_path)
     
     if 'projects' not in config:
@@ -38,10 +34,10 @@ def setup_cursorfocus():
         return
 
     if args.clear:
-        if confirm_action("Are you sure you want to remove all projects?"):
+        if confirm_action("Remove all projects?"):
             config['projects'] = []
             save_config(config_path, config)
-            print("\n✅ All projects have been removed.")
+            print("✅ All projects removed")
         return
 
     if args.remove:
@@ -52,39 +48,31 @@ def setup_cursorfocus():
     # Handle scan option
     if args.scan is not None:
         scan_path = os.path.abspath(args.scan) if args.scan else os.getcwd()
-        
-        print(f"\n🔍 Scanning for projects in: {scan_path}")
+        print(f"🔍 Scanning: {scan_path}")
         found_projects = scan_for_projects(scan_path, args.scan_depth)
         
-        # Filter projects if a filter is provided
         if args.filter:
             filter_term = args.filter.lower()
             found_projects = [p for p in found_projects if 
-                             filter_term in p['type'].lower() or
-                             filter_term in p.get('language', '').lower() or 
-                             filter_term in p.get('framework', '').lower()]
+                            filter_term in p['type'].lower() or
+                            filter_term in p.get('language', '').lower() or 
+                            filter_term in p.get('framework', '').lower()]
         
-        # Sort projects if a sort option is provided
         if args.sort:
             found_projects.sort(key=lambda x: str(x.get(args.sort, '')).lower())
         
         if not found_projects:
-            print("No projects found.")
+            print("❌ No projects found")
             return
             
         print(f"\nFound {len(found_projects)} projects:")
         for i, project in enumerate(found_projects, 1):
-            print(f"\n  {i}. {project['name']} ({project['type']})")
-            print(f"     Path: {project['path']}")
-            if 'description' in project:
-                print(f"     Description: {project['description']}")
-            if 'language' in project:
-                print(f"     Language: {project['language']}")
-            if 'framework' in project:
-                print(f"     Framework: {project['framework']}")
+            print(f"{i}. {project['name']} ({project['type']})")
+            print(f"   Path: {project['path']}")
+            if project.get('language'): print(f"   Language: {project['language']}")
+            if project.get('framework'): print(f"   Framework: {project['framework']}")
         
         if args.auto_add:
-            # Automatically add all found projects
             added = 0
             for project in found_projects:
                 if not any(p['project_path'] == project['path'] for p in config['projects']):
@@ -95,15 +83,12 @@ def setup_cursorfocus():
                         'max_depth': 3
                     })
                     added += 1
-            print(f"\n✅ Added {added} new projects to configuration")
+            print(f"✅ Added {added} projects")
         else:
-            # Ask which projects to add
-            print("\nSelect projects to add (enter numbers separated by space, 'all', or 'q' to quit):")
+            print("\nSelect projects (numbers/all/q):")
             try:
                 selection = input("> ").strip().lower()
-                
                 if selection in ['q', 'quit', 'exit']:
-                    print("\n❌ Operation cancelled.")
                     return
                     
                 if selection == 'all':
@@ -111,15 +96,13 @@ def setup_cursorfocus():
                 else:
                     try:
                         indices = [int(i) - 1 for i in selection.split()]
-                        # Validate indices
                         if any(i < 0 or i >= len(found_projects) for i in indices):
-                            print("\n❌ Invalid project number(s). Operation cancelled.")
+                            print("❌ Invalid numbers")
                             return
                     except ValueError:
-                        print("\n❌ Invalid input. Operation cancelled.")
+                        print("❌ Invalid input")
                         return
                 
-                # Add selected projects
                 added = 0
                 for idx in indices:
                     project = found_projects[idx]
@@ -131,44 +114,38 @@ def setup_cursorfocus():
                             'max_depth': 3
                         })
                         added += 1
-                    else:
-                        print(f"\n⚠️  Project already exists: {project['name']}")
                 
                 if added > 0:
-                    print(f"\n✅ Added {added} new projects to configuration")
-                else:
-                    print("\n⚠️  No new projects were added")
+                    print(f"✅ Added {added} projects")
                     
             except KeyboardInterrupt:
-                print("\n\n❌ Operation cancelled.")
+                print("\n❌ Cancelled")
                 return
         
-        if config['projects']:  # Only save if we have projects
+        if config['projects']:
             save_config(config_path, config)
         return
 
     # Add/update projects
     if args.projects:
-        # Validate project paths first
         valid_projects = []
         for i, project_path in enumerate(args.projects):
             abs_path = os.path.abspath(project_path)
             if not os.path.exists(abs_path):
-                print(f"\n⚠️  Warning: Project path does not exist: {abs_path}")
+                print(f"⚠️ Path not found: {abs_path}")
                 continue
                 
+            project_name = args.names[i] if args.names and i < len(args.names) else get_project_name(abs_path)
             project_config = {
-                'name': args.names[i] if args.names and i < len(args.names) else f"Project {i+1}",
+                'name': project_name,
                 'project_path': abs_path,
                 'update_interval': args.intervals[i] if args.intervals and i < len(args.intervals) else 60,
                 'max_depth': args.depths[i] if args.depths and i < len(args.depths) else 3
             }
             valid_projects.append(project_config)
             
-        # Check for duplicate names
         names = [p['name'] for p in valid_projects]
         if len(names) != len(set(names)):
-            print("\n⚠️  Warning: Duplicate project names found. Adding unique suffixes...")
             name_counts = {}
             for project in valid_projects:
                 base_name = project['name']
@@ -178,7 +155,6 @@ def setup_cursorfocus():
                 else:
                     name_counts[base_name] = 1
         
-        # Update existing projects or add new ones
         for project in valid_projects:
             existing = next((p for p in config['projects'] if p['project_path'] == project['project_path']), None)
             if existing:
@@ -186,18 +162,15 @@ def setup_cursorfocus():
             else:
                 config['projects'].append(project)
 
-    # Save the config
     save_config(config_path, config)
-    print("\n✅ Configuration saved successfully")
-    print("\n📁 Configured projects:")
+    print("\n📁 Projects:")
     for project in config['projects']:
-        print(f"\n  • {project['name']}:")
-        print(f"    Path: {project['project_path']}")
-        print(f"    Update interval: {project['update_interval']} seconds")
-        print(f"    Max depth: {project['max_depth']} levels")
+        print(f"\n• {project['name']}")
+        print(f"  Path: {project['project_path']}")
+        print(f"  Update: {project['update_interval']}s")
+        print(f"  Depth: {project['max_depth']}")
     
-    print("\nTo start monitoring all projects, run:")
-    print(f"python3 {os.path.join(script_dir, 'focus.py')}")
+    print(f"\nRun: python {os.path.join(script_dir, 'focus.py')}")
 
 def load_or_create_config(config_path):
     """Load existing config or create default one."""
@@ -289,6 +262,22 @@ def confirm_action(message):
             return True
         if response in ['n', 'no']:
             return False
+
+def get_project_name(project_path):
+    """Get project name from directory name, with some cleanup."""
+    # Get the base directory name
+    base_name = os.path.basename(os.path.normpath(project_path))
+    
+    # Clean up common suffixes
+    name = base_name.lower()
+    for suffix in ['-main', '-master', '-dev', '-development', '.git']:
+        if name.endswith(suffix):
+            base_name = base_name[:-len(suffix)]
+            break
+    
+    # Convert to title case and replace special characters
+    words = base_name.replace('-', ' ').replace('_', ' ').split()
+    return ' '.join(word.capitalize() for word in words)
 
 if __name__ == '__main__':
     setup_cursorfocus() 

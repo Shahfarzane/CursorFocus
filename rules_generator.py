@@ -410,7 +410,6 @@ Do not include technical metrics in the description."""
             with open(rules_file, 'w', encoding='utf-8') as f:
                 json.dump(rules, f, indent=2)
             
-            print("✅ Successfully generated rules using Gemini AI")
             return rules_file
                 
         except Exception as e:

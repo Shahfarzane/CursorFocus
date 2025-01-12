@@ -109,27 +109,26 @@ def get_default_config():
         }
     }
 
-def setup_cursor_focus(project_path):
+def setup_cursor_focus(project_path, project_name=None):
     """Set up CursorFocus for a project by generating necessary files."""
     try:
         rules_file = os.path.join(project_path, '.cursorrules')
         
         # Check if .cursorrules exists and ask user
         if os.path.exists(rules_file):
-            print(f"\nFound existing .cursorrules file.")
-            response = input("Do you want to generate a new one? (y/n): ").lower()
+            print(f"\n.cursorrules exists for {project_name or 'project'}")
+            response = input("Generate new? (y/n): ").lower()
             if response != 'y':
-                print("Using existing .cursorrules file.")
                 return
         
         # Generate .cursorrules file
-        print(f"\nAnalyzing project: {project_path}")
+        print(f"\n📄 Analyzing: {project_path}")
         analyzer = RulesAnalyzer(project_path)
         project_info = analyzer.analyze_project_for_rules()
         
         rules_generator = RulesGenerator(project_path)
         rules_file = rules_generator.generate_rules_file(project_info)
-        print(f"✅ Generated {rules_file}")
+        print(f"✓ {os.path.basename(rules_file)}")
 
         # Generate initial Focus.md with default config
         focus_file = os.path.join(project_path, 'Focus.md')
@@ -137,20 +136,17 @@ def setup_cursor_focus(project_path):
         content = generate_focus_content(project_path, default_config)
         with open(focus_file, 'w', encoding='utf-8') as f:
             f.write(content)
-        print(f"✅ Generated {focus_file}")
+        print(f"✓ {os.path.basename(focus_file)}")
 
-        print("\n🎉 CursorFocus setup complete!")
-        print("Generated files:")
-        print(f"- {rules_file}")
-        print(f"- {focus_file}")
     except Exception as e:
-        print(f"❌ Error during setup: {e}")
+        print(f"❌ Setup error: {e}")
         raise
 
 def monitor_project(project_config, global_config):
     """Monitor a single project."""
     project_path = project_config['project_path']
-    print(f"\n🔍 Monitoring project: {project_config['name']} at {project_path}")
+    project_name = project_config['name']
+    print(f"👀 {project_name}")
     
     # Merge project config with global config
     config = {**global_config, **project_config}
@@ -159,9 +155,9 @@ def monitor_project(project_config, global_config):
     last_content = None
     last_update = 0
 
-    # Start rules watcher for this project but disable auto-update
+    # Start rules watcher for this project
     watcher = ProjectWatcherManager()
-    watcher.add_project(project_path, project_config['name'])
+    watcher.add_project(project_path, project_name)
 
     while True:
         current_time = time.time()
@@ -177,48 +173,42 @@ def monitor_project(project_config, global_config):
                 with open(focus_file, 'w', encoding='utf-8') as f:
                     f.write(content)
                 last_content = content
-                print(f"✅ {project_config['name']} Focus.md updated at {datetime.now().strftime('%I:%M:%S %p')}")
+                print(f"✓ {project_name} ({datetime.now().strftime('%H:%M')})")
             except Exception as e:
-                print(f"❌ Error writing Focus.md for {project_config['name']}: {e}")
+                print(f"❌ {project_name}: {e}")
         
         last_update = current_time
 
 def main():
     """Main function to monitor multiple projects."""
-    # Setup logging
     logging.basicConfig(
         level=logging.WARNING,
         format='%(levelname)s: %(message)s'
     )
 
-    # Check updates before running the program
-    print("\n🔄 Checking for updates...")
+    # Check updates
+    print("\n🔄 Checking updates...")
     updater = AutoUpdater()
     update_info = updater.check_for_updates()
     
     if update_info:
-        print(f"\n📦 New updates available")
-        print(f"Commit: {update_info['message']}")
-        print(f"Author: {update_info['author']}")
-        print(f"Date: {update_info['date']}")
-        
-        if input("\nDo you want to update? (y/n): ").lower() == 'y':
-            print("\n⏳ Downloading and installing update...")
+        print(f"📦 Update available: {update_info['message']}")
+        if input("Update now? (y/n): ").lower() == 'y':
+            print("⏳ Downloading...")
             if updater.update(update_info):
-                print("✅ Update successful! Please restart the application.")
+                print("✅ Updated! Please restart")
                 return
             else:
-                print("❌ Update failed. Continuing with current version.")
+                print("❌ Update failed")
     else:
-        print("✅ You are using the latest version.")
+        print("✓ Latest version")
 
     config = load_config()
     if not config:
-        print("No config.json found, using default configuration")
+        print("No config.json found")
         config = get_default_config()
 
     if 'projects' not in config:
-        # Handle single project config for backward compatibility
         config['projects'] = [{
             'name': 'Default Project',
             'project_path': config['project_path'],
@@ -226,32 +216,40 @@ def main():
             'max_depth': config.get('max_depth', 3)
         }]
 
-    # Create threads for each project
     from threading import Thread
     threads = []
     
     try:
+        # Setup projects
         for project in config['projects']:
-            # Always run setup_cursor_focus to check/create .cursorrules
-            setup_cursor_focus(project['project_path'])
+            if os.path.exists(project['project_path']):
+                setup_cursor_focus(project['project_path'], project['name'])
+            else:
+                print(f"⚠️ Not found: {project['project_path']}")
+                continue
 
-            # Start monitoring thread
-            thread = Thread(
-                target=monitor_project,
-                args=(project, config),
-                daemon=True
-            )
-            thread.start()
-            threads.append(thread)
+        # Start monitoring
+        for project in config['projects']:
+            if os.path.exists(project['project_path']):
+                thread = Thread(
+                    target=monitor_project,
+                    args=(project, config),
+                    daemon=True
+                )
+                thread.start()
+                threads.append(thread)
 
-        print("\n📝 Press Ctrl+C to stop all monitors")
+        if not threads:
+            print("❌ No projects to monitor")
+            return
+
+        print(f"\n📝 Monitoring {len(threads)} projects (Ctrl+C to stop)")
         
-        # Keep main thread alive
         while True:
             time.sleep(1)
             
     except KeyboardInterrupt:
-        print("\n👋 Stopping all CursorFocus monitors")
+        print("\n👋 Stopping")
     except Exception as e:
         print(f"\n❌ Error: {e}")
 
