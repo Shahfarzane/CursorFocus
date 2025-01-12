@@ -15,7 +15,9 @@ class RulesGenerator:
         'typescript': r'(?:import|require)\s+.*?[\'"]([^\'\"]+)[\'"]',
         'kotlin': r'import\s+([^\n]+)',
         'php': r'(?:require|include)(?:_once)?\s*[\'"]([^\'"]+)[\'"]',
-        'swift': r'import\s+([^\n]+)'
+        'swift': r'import\s+([^\n]+)',
+        'cpp': r'#include\s*[<"]([^>"]+)[>"]',
+        'c': r'#include\s*[<"]([^>"]+)[>"]'
     }
 
     CLASS_PATTERNS = {
@@ -24,7 +26,9 @@ class RulesGenerator:
         'typescript': r'(?:class|const)\s+(\w+)(?:\s*(?:extends|implements)\s+([^{]+))?(?:\s*=\s*(?:styled|React\.memo|React\.forwardRef))?\s*[{<]',
         'kotlin': r'(?:class|interface|object)\s+(\w+)(?:\s*:\s*([^{]+))?',
         'php': r'class\s+(\w+)(?:\s+extends\s+(\w+))?(?:\s+implements\s+([^{]+))?',
-        'swift': r'(?:class|struct|protocol|enum)\s+(\w+)(?:\s*:\s*([^{]+))?'
+        'swift': r'(?:class|struct|protocol|enum)\s+(\w+)(?:\s*:\s*([^{]+))?',
+        'cpp': r'(?:class|struct)\s+(\w+)(?:\s*:\s*(?:public|private|protected)\s+(\w+))?(?:\s*{)?',
+        'c': r'(?:struct|enum|union)\s+(\w+)(?:\s*{)?'
     }
 
     FUNCTION_PATTERNS = {
@@ -33,7 +37,9 @@ class RulesGenerator:
         'typescript': r'(?:function|const)\s+(\w+)\s*(?:<[^>]+>)?\s*(?:=\s*)?(?:async\s*)?\((.*?)\)(?:\s*:\s*([^{=]+))?',
         'kotlin': r'fun\s+(\w+)\s*\((.*?)\)(?:\s*:\s*([^{]+))?',
         'php': r'function\s+(\w+)\s*\((.*?)\)(?:\s*:\s*([^{]+))?',
-        'swift': r'func\s+(\w+)\s*\((.*?)\)(?:\s*->\s*([^{]+))?'
+        'swift': r'func\s+(\w+)\s*\((.*?)\)(?:\s*->\s*([^{]+))?',
+        'cpp': r'(?:virtual\s+)?(?:[\w:]+\s+)?(\w+)\s*\((.*?)\)(?:\s*(?:const|override|final|noexcept))?\s*(?:{\s*)?',
+        'c': r'(?:static\s+)?(?:[\w*]+\s+)?(\w+)\s*\((.*?)\)(?:\s*{)?'
     }
 
     METHOD_PATTERN = r'(?:async\s+)?(\w+)\s*\((.*?)\)\s*{'
@@ -110,7 +116,7 @@ class RulesGenerator:
                 rel_path = os.path.relpath(file_path, self.project_path)
                 
                 # Analyze code files
-                if file.endswith(('.py', '.js', '.ts', '.tsx', '.kt', '.php', '.swift')):
+                if file.endswith(('.py', '.js', '.ts', '.tsx', '.kt', '.php', '.swift', '.cpp', '.c', '.h', '.hpp')):
                     structure['files'].append(rel_path)
                     
                     try:
@@ -134,6 +140,10 @@ class RulesGenerator:
                                 self._analyze_php_file(content, rel_path, structure)
                             elif file_ext == '.swift':
                                 self._analyze_swift_file(content, rel_path, structure)
+                            elif file_ext in ['.cpp', '.hpp']:
+                                self._analyze_cpp_file(content, rel_path, structure)
+                            elif file_ext in ['.c', '.h']:
+                                self._analyze_c_file(content, rel_path, structure)
                                     
                     except Exception as e:
                         print(f"⚠️ Error reading file {rel_path}: {e}")
@@ -629,3 +639,92 @@ Do not include technical metrics in the description."""
                         'type': 'jsx_component',
                         'file': rel_path
                     }) 
+
+    def _analyze_cpp_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
+        """Analyze C++ file content."""
+        # Find includes
+        includes = re.findall(self.IMPORT_PATTERNS['cpp'], content)
+        structure['dependencies'].update({inc: True for inc in includes})
+        structure['patterns']['imports'].extend(includes)
+        
+        # Find classes and structs
+        classes = re.finditer(self.CLASS_PATTERNS['cpp'], content)
+        for match in classes:
+            structure['patterns']['class_patterns'].append({
+                'name': match.group(1),
+                'inheritance': match.group(2) if match.group(2) else '',
+                'file': rel_path
+            })
+        
+        # Find functions and methods
+        functions = re.finditer(self.FUNCTION_PATTERNS['cpp'], content)
+        for match in functions:
+            structure['patterns']['function_patterns'].append({
+                'name': match.group(1),
+                'parameters': match.group(2),
+                'file': rel_path
+            })
+            
+        # Find templates
+        templates = re.finditer(r'template\s*<([^>]+)>', content)
+        for match in templates:
+            structure['patterns']['code_organization'].append({
+                'type': 'template',
+                'parameters': match.group(1),
+                'file': rel_path
+            })
+            
+        # Find namespaces
+        namespaces = re.finditer(r'namespace\s+(\w+)\s*{', content)
+        for match in namespaces:
+            structure['patterns']['code_organization'].append({
+                'type': 'namespace',
+                'name': match.group(1),
+                'file': rel_path
+            })
+
+    def _analyze_c_file(self, content: str, rel_path: str, structure: Dict[str, Any]):
+        """Analyze C file content."""
+        # Find includes
+        includes = re.findall(self.IMPORT_PATTERNS['c'], content)
+        structure['dependencies'].update({inc: True for inc in includes})
+        structure['patterns']['imports'].extend(includes)
+        
+        # Find structs and unions
+        structs = re.finditer(self.CLASS_PATTERNS['c'], content)
+        for match in structs:
+            structure['patterns']['class_patterns'].append({
+                'name': match.group(1),
+                'type': 'struct/union',
+                'file': rel_path
+            })
+        
+        # Find functions
+        functions = re.finditer(self.FUNCTION_PATTERNS['c'], content)
+        for match in functions:
+            structure['patterns']['function_patterns'].append({
+                'name': match.group(1),
+                'parameters': match.group(2),
+                'file': rel_path
+            })
+            
+        # Find macros
+        macros = re.finditer(r'#define\s+(\w+)(?:\(([^)]*)\))?\s+(.+)', content)
+        for match in macros:
+            structure['patterns']['code_organization'].append({
+                'type': 'macro',
+                'name': match.group(1),
+                'parameters': match.group(2) if match.group(2) else '',
+                'value': match.group(3),
+                'file': rel_path
+            })
+            
+        # Find typedefs
+        typedefs = re.finditer(r'typedef\s+(?:struct|enum|union)?\s*(\w+)\s+(\w+);', content)
+        for match in typedefs:
+            structure['patterns']['code_organization'].append({
+                'type': 'typedef',
+                'original_type': match.group(1),
+                'new_type': match.group(2),
+                'file': rel_path
+            }) 
