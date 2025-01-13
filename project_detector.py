@@ -74,18 +74,10 @@ PROJECT_TYPES = {
     }
 }
 
-# Thêm cache cho kết quả scan
+# Add cache for scan results
 _scan_cache = {}
 
 def detect_project_type(project_path):
-    """Detect project type based on file presence using configurable rules.
-    
-    Returns:
-        dict: A dictionary containing project information with keys:
-            - type: The detected project type
-            - language: The primary programming language
-            - framework: The detected framework
-    """
     if not os.path.exists(project_path):
         return {
             'type': 'generic',
@@ -169,7 +161,7 @@ def detect_language_and_framework(project_path):
         'rust': ['.rs', 'Cargo.toml'],
         'c++': ['.cpp', '.hpp', '.cc', '.cxx'],
         'c#': ['.cs', '.csproj', '.sln'],
-        'lua': ['.lua', 'init.lua', 'main.lua', 'config.lua']
+        'lua': ['.lua', 'init.lua', 'main.lua', 'config.lua'],
     }
     
     # Framework detection based on specific files/directories
@@ -219,17 +211,17 @@ def scan_for_projects(root_path, max_depth=3, ignored_dirs=None, use_cache=True)
     """Scan directory recursively for projects with caching."""
     cache_key = f"{root_path}:{max_depth}"
     
-    # Kiểm tra cache
+    # Check cache
     if use_cache and cache_key in _scan_cache:
         cache_time, cached_results = _scan_cache[cache_key]
-        # Cache có hiệu lực trong 5 phút
+        # Cache is valid for 5 minutes
         if time.time() - cache_time < 300:
             return cached_results
     
-    # Thực hiện scan như bình thường
+    # Perform scan as usual
     results = _do_scan(root_path, max_depth, ignored_dirs)
     
-    # Lưu vào cache
+    # Save to cache
     if use_cache:
         _scan_cache[cache_key] = (time.time(), results)
     
@@ -328,7 +320,7 @@ def get_file_type_info(filename):
         '.storyboard': ('iOS Storyboard', 'iOS UI layout file'),
         '.xib': ('iOS XIB', 'iOS UI component file'),
         '.lua': ('Lua Source', 'Lua script file implementing game logic or automation'),
-        '.rockspec': ('LuaRocks Spec', 'Lua package specification file')
+        '.rockspec': ('LuaRocks Spec', 'Lua package specification file'),
     }
     
     return type_map.get(ext, ('Generic', 'Project file')) 

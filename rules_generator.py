@@ -150,7 +150,7 @@ class RulesGenerator:
                         continue
 
                 # Classify files
-                if file.endswith(('.json', '.yaml', '.ini', '.conf')):
+                if file.endswith(('.json', '.ini', '.conf')):
                     structure['config_files'].append(rel_path)
                     try:
                         with open(file_path, 'r', encoding='utf-8') as f:
@@ -280,11 +280,8 @@ Critical Guidelines for AI:
 4. COPY the existing skill level approach
 5. PRESERVE all established practices
 6. REPLICATE the project's exact style
-7. UNDERSTAND pattern purposes
-8. FOLLOW existing workflows
-9. RESPECT current architecture
-10. MIRROR documentation style"""
-
+7. UNDERSTAND pattern purposes"""
+    
             # Get AI response
             response = self.chat_session.send_message(prompt)
             

@@ -9,7 +9,9 @@ def load_config():
         
         if os.path.exists(config_path):
             with open(config_path, 'r') as f:
-                return json.load(f)
+                if config_path.endswith('.json'):
+                    return json.load(f)
+                
         
         return get_default_config()
     except Exception as e:
@@ -58,8 +60,6 @@ def get_default_config():
             ".vue": 250,
             ".svelte": 250,
             ".json": 100,
-            ".yaml": 100,
-            ".yml": 100,
             ".toml": 100,
             ".md": 500,
             ".rst": 500,
@@ -78,7 +78,7 @@ BINARY_EXTENSIONS = set(_config.get('binary_extensions', []))
 
 # Documentation and text files that shouldn't be analyzed for functions
 NON_CODE_EXTENSIONS = {
-    '.md', '.txt', '.log', '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg',
+    '.md', '.txt', '.log', '.json', '.yml', '.toml', '.ini', '.cfg',
     '.conf', '.config', '.markdown', '.rst', '.rdoc', '.csv', '.tsv'
 }
 

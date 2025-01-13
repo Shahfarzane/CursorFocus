@@ -10,16 +10,9 @@ def setup_cursorfocus():
     parser = argparse.ArgumentParser(description='Set up CursorFocus for your projects')
     parser.add_argument('--projects', '-p', nargs='+', help='Paths to projects to monitor')
     parser.add_argument('--names', '-n', nargs='+', help='Names for the projects (optional)')
-    parser.add_argument('--intervals', '-i', nargs='+', type=int, help='Update intervals in seconds for each project')
-    parser.add_argument('--depths', '-d', nargs='+', type=int, help='Maximum directory depths for each project')
     parser.add_argument('--list', '-l', action='store_true', help='List all configured projects')
-    parser.add_argument('--remove', '-r', nargs='+', help='Remove projects by name or index')
-    parser.add_argument('--clear', '-c', action='store_true', help='Remove all projects')
+    parser.add_argument('--remove', '-r', nargs='+', help='Remove projects by name/index, or use "all" to remove all projects')
     parser.add_argument('--scan', '-s', nargs='?', const='.', help='Scan directory for projects')
-    parser.add_argument('--scan-depth', type=int, default=3, help='Maximum depth for project scanning')
-    parser.add_argument('--auto-add', '-a', action='store_true', help='Automatically add all found projects')
-    parser.add_argument('--sort', choices=['name', 'type', 'language'], help='Sort projects by field')
-    parser.add_argument('--filter', help='Filter projects by type/language/framework')
     
     args = parser.parse_args()
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,33 +26,22 @@ def setup_cursorfocus():
         list_projects(config['projects'])
         return
 
-    if args.clear:
-        if confirm_action("Remove all projects?"):
-            config['projects'] = []
-            save_config(config_path, config)
-            print("✅ All projects removed")
-        return
-
     if args.remove:
-        remove_projects(config, args.remove)
-        save_config(config_path, config)
+        if 'all' in args.remove:
+            if confirm_action("Remove all projects?"):
+                config['projects'] = []
+                save_config(config_path, config)
+                print("✅ All projects removed")
+        else:
+            remove_projects(config, args.remove)
+            save_config(config_path, config)
         return
 
     # Handle scan option
     if args.scan is not None:
         scan_path = os.path.abspath(args.scan) if args.scan else os.getcwd()
         print(f"🔍 Scanning: {scan_path}")
-        found_projects = scan_for_projects(scan_path, args.scan_depth)
-        
-        if args.filter:
-            filter_term = args.filter.lower()
-            found_projects = [p for p in found_projects if 
-                            filter_term in p['type'].lower() or
-                            filter_term in p.get('language', '').lower() or 
-                            filter_term in p.get('framework', '').lower()]
-        
-        if args.sort:
-            found_projects.sort(key=lambda x: str(x.get(args.sort, '')).lower())
+        found_projects = scan_for_projects(scan_path, 3)
         
         if not found_projects:
             print("❌ No projects found")
@@ -72,9 +54,27 @@ def setup_cursorfocus():
             if project.get('language'): print(f"   Language: {project['language']}")
             if project.get('framework'): print(f"   Framework: {project['framework']}")
         
-        if args.auto_add:
+        print("\nSelect projects (numbers/all/q):")
+        try:
+            selection = input("> ").strip().lower()
+            if selection in ['q', 'quit', 'exit']:
+                return
+                
+            if selection == 'all':
+                indices = range(len(found_projects))
+            else:
+                try:
+                    indices = [int(i) - 1 for i in selection.split()]
+                    if any(i < 0 or i >= len(found_projects) for i in indices):
+                        print("❌ Invalid numbers")
+                        return
+                except ValueError:
+                    print("❌ Invalid input")
+                    return
+            
             added = 0
-            for project in found_projects:
+            for idx in indices:
+                project = found_projects[idx]
                 if not any(p['project_path'] == project['path'] for p in config['projects']):
                     config['projects'].append({
                         'name': project['name'],
@@ -83,44 +83,13 @@ def setup_cursorfocus():
                         'max_depth': 3
                     })
                     added += 1
-            print(f"✅ Added {added} projects")
-        else:
-            print("\nSelect projects (numbers/all/q):")
-            try:
-                selection = input("> ").strip().lower()
-                if selection in ['q', 'quit', 'exit']:
-                    return
-                    
-                if selection == 'all':
-                    indices = range(len(found_projects))
-                else:
-                    try:
-                        indices = [int(i) - 1 for i in selection.split()]
-                        if any(i < 0 or i >= len(found_projects) for i in indices):
-                            print("❌ Invalid numbers")
-                            return
-                    except ValueError:
-                        print("❌ Invalid input")
-                        return
+            
+            if added > 0:
+                print(f"✅ Added {added} projects")
                 
-                added = 0
-                for idx in indices:
-                    project = found_projects[idx]
-                    if not any(p['project_path'] == project['path'] for p in config['projects']):
-                        config['projects'].append({
-                            'name': project['name'],
-                            'project_path': project['path'],
-                            'update_interval': 60,
-                            'max_depth': 3
-                        })
-                        added += 1
-                
-                if added > 0:
-                    print(f"✅ Added {added} projects")
-                    
-            except KeyboardInterrupt:
-                print("\n❌ Cancelled")
-                return
+        except KeyboardInterrupt:
+            print("\n❌ Cancelled")
+            return
         
         if config['projects']:
             save_config(config_path, config)
@@ -139,8 +108,8 @@ def setup_cursorfocus():
             project_config = {
                 'name': project_name,
                 'project_path': abs_path,
-                'update_interval': args.intervals[i] if args.intervals and i < len(args.intervals) else 60,
-                'max_depth': args.depths[i] if args.depths and i < len(args.depths) else 3
+                'update_interval': 60,
+                'max_depth': 3
             }
             valid_projects.append(project_config)
             
