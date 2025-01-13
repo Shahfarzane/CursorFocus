@@ -61,32 +61,32 @@ class RulesAnalyzer:
                     extensions[ext] = extensions.get(ext, 0) + 1
 
         # Map extensions to languages
-        language_map = {
-            '.py': 'python',
-            '.pyi': 'python',
+        FILE_EXTENSIONS = {
             '.js': 'javascript',
+            '.jsx': 'javascript',
             '.ts': 'typescript',
-            '.jsx': 'react',
-            '.tsx': 'typescript-react',
-            '.vue': 'vue',
-            '.go': 'golang',
-            '.rs': 'rust',
+            '.tsx': 'typescript',
+            '.py': 'python',
             '.java': 'java',
-            '.kt': 'kotlin',
-            '.kts': 'kotlin',
-            '.swift': 'swift',
+            '.cpp': 'cpp',
             '.c': 'c',
             '.h': 'c',
-            '.cpp': 'cpp',
-            '.cc': 'cpp',
-            '.cxx': 'cpp',
             '.hpp': 'cpp',
-            '.hxx': 'cpp',
             '.cs': 'csharp',
-            '.cshtml': 'csharp',
+            '.go': 'go',
             '.rb': 'ruby',
             '.php': 'php',
-            '.lua': 'lua',
+            '.swift': 'swift',
+            '.kt': 'kotlin',
+            '.kts': 'kotlin',
+            '.json': 'json',
+            '.md': 'markdown',
+            '.html': 'html',
+            '.css': 'css',
+            '.scss': 'scss',
+            '.less': 'less',
+            '.vue': 'vue',
+            '.svelte': 'svelte'
         }
 
         # Find the most common language
@@ -94,9 +94,9 @@ class RulesAnalyzer:
         main_language = 'javascript'  # default
         
         for ext, count in extensions.items():
-            if ext in language_map and count > max_count:
+            if ext in FILE_EXTENSIONS and count > max_count:
                 max_count = count
-                main_language = language_map[ext]
+                main_language = FILE_EXTENSIONS[ext]
 
         return main_language
 

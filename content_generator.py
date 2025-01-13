@@ -113,19 +113,6 @@ def generate_focus_content(project_path, config):
                 metrics.lines_by_type[ext] = metrics.lines_by_type.get(ext, 0) + line_count
                 metrics.total_lines += line_count
                 
-                if functions:
-                    content.append("**Key Functions:**")
-                    for func_name, description in functions:
-                        content.append(f"<{func_name}>: {description}")
-                        if "Duplicate Alert" in description:
-                            metrics.duplicate_functions += 1
-                
-                # Get file-specific length limit and check thresholds
-                length_limit = get_file_length_limit(file_path)
-                alert_level, alert_message = get_file_length_alert(line_count, length_limit, thresholds)
-                if alert_level:
-                    metrics.alerts[alert_level] += 1
-                    content.append(f"**{alert_message} ({line_count} lines vs. recommended {length_limit})**")
     
     # Add metrics summary
     content.extend([
@@ -144,7 +131,7 @@ def generate_focus_content(project_path, config):
         f"- 📄 Length Warnings: {metrics.alerts['warning']} files",
         f"- 🔄 Duplicate Functions: {metrics.duplicate_functions}",
         "",
-        f"Last updated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}"
+        f"*Last updated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}*"
     ])
     
     return '\n'.join(content)

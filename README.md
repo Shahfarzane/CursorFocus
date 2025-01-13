@@ -1,6 +1,8 @@
-`All copyrights are owned by RenjiYuusei please do not steal the source code or change it without permission please respect the copyright`
 
-# CursorFocus
+
+## All copyrights are owned by RenjiYuusei please do not steal the source code or change it without permission please respect the copyright
+
+## CursorFocus
 
 A lightweight tool that maintains a focused view of your project structure and environment. CursorFocus automatically tracks your project files, functions, and environment variables, updating every 60 seconds to keep you informed of changes.
 
@@ -24,7 +26,7 @@ Join our Discord server to discuss features, ask questions: [Discord](https://di
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.6+
 - Gemini API Key (required for AI-powered features)
 
 ## API Key Setup
@@ -51,6 +53,7 @@ Before running CursorFocus, you need to set up your Gemini API key:
 
    - Windows: Add to system environment variables
    - Mac/Linux: Add to `~/.bashrc`, `~/.zshrc`, or equivalent shell config file
+
 
 ## Multi-Project Support
 
